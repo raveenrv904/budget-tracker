@@ -14,7 +14,7 @@ import {
   CreateTransactionSchemaType,
 } from "@/schema/transaction";
 import { DialogTitle, DialogTrigger } from "@radix-ui/react-dialog";
-import { ReactNode, useCallback } from "react";
+import { ReactNode, useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +38,10 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CreateTransaction } from "../_actions/transactions";
+import { toast } from "sonner";
+import { dateToUTCDate } from "@/lib/helpers";
 
 interface Props {
   trigger: ReactNode;
@@ -53,14 +57,58 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
     },
   });
 
+  const [open, setOpen] = useState(false);
+
   const handleCategoryChange = useCallback(
     (value: string) => {
       form.setValue("category", value);
     },
     [form]
   );
+
+  const queryClient = useQueryClient();
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: CreateTransaction,
+    onSuccess: () => {
+      toast.success("Transaction created successfully 🎉", {
+        id: "create-transaction",
+      });
+
+      form.reset({
+        type,
+        description: "",
+        amount: 0,
+        date: new Date(),
+        category: undefined,
+      });
+
+      //   After creating a transaction, we need to invalidate the overview query which will refetch data in the homepage
+
+      queryClient.invalidateQueries({
+        queryKey: ["overview"],
+      });
+
+      setOpen((prev) => !prev);
+    },
+  });
+
+  const onSubmit = useCallback(
+    (values: CreateTransactionSchemaType) => {
+      toast.loading("Creating Transaction...", {
+        id: "create-transaction",
+      });
+
+      mutate({
+        ...values,
+        date: dateToUTCDate(values.date),
+      });
+    },
+    [mutate]
+  );
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -78,7 +126,7 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
           </DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
               control={form.control}
               name="description"
@@ -116,7 +164,7 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
                 control={form.control}
                 name="category"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Category</FormLabel>
 
                     <FormControl>
@@ -137,7 +185,7 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
                 control={form.control}
                 name="date"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Transaction Date</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -162,7 +210,11 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(value) => {
+                            if (!value) return;
+                            console.log("@@CALENDAR", value);
+                            field.onChange(value);
+                          }}
                           initialFocus
                         />
                       </PopoverContent>
@@ -192,10 +244,10 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
               Cancel
             </Button>
           </DialogClose>
-          {/* <Button onClick={form.handleSubmit(onSubmit)} disabled={isPending}>
+          <Button onClick={form.handleSubmit(onSubmit)} disabled={isPending}>
             {!isPending && "Create"}
             {isPending && <Loader2 className="animate-spin" />}
-          </Button> */}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

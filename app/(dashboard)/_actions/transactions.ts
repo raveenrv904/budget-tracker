@@ -50,6 +50,58 @@ export const CreateTransaction = async (form: CreateTransactionSchemaType) => {
       },
     }),
 
-    // Update aggregate table
+    // Update month aggregate table
+    prisma.monthHistory.upsert({
+      where: {
+        day_month_year_userId: {
+          userId: user.id,
+          day: date.getUTCDate(),
+          month: date.getUTCMonth(),
+          year: date.getUTCFullYear(),
+        },
+      },
+      create: {
+        userId: user.id,
+        day: date.getUTCDate(),
+        month: date.getUTCMonth(),
+        year: date.getUTCFullYear(),
+        expense: type === "expense" ? amount : 0,
+        income: type === "income" ? amount : 0,
+      },
+      update: {
+        expense: {
+          increment: type === "expense" ? amount : 0,
+        },
+        income: {
+          increment: type === "income" ? amount : 0,
+        },
+      },
+    }),
+
+    // Update year aggregate
+    prisma.yearHistory.upsert({
+      where: {
+        month_year_userId: {
+          userId: user.id,
+          month: date.getUTCMonth(),
+          year: date.getUTCFullYear(),
+        },
+      },
+      create: {
+        userId: user.id,
+        month: date.getUTCMonth(),
+        year: date.getUTCFullYear(),
+        expense: type === "expense" ? amount : 0,
+        income: type === "income" ? amount : 0,
+      },
+      update: {
+        expense: {
+          increment: type === "expense" ? amount : 0,
+        },
+        income: {
+          increment: type === "income" ? amount : 0,
+        },
+      },
+    }),
   ]);
 };
