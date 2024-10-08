@@ -223,7 +223,6 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
                     <FormDescription>
                       Select a date for this transaction
                     </FormDescription>
-
                     <FormMessage />
                   </FormItem>
                 )}
